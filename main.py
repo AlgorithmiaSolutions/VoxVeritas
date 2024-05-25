@@ -6,6 +6,8 @@ import xgboost as xgb
 import librosa
 import numpy as np
 import pandas as pd
+import joblib
+import os
 import glob
 
 def extract_features_from_segment(segment, sr):
@@ -33,7 +35,6 @@ def extract_features_from_segment(segment, sr):
         features[f'mfcc{i + 1}'] = np.mean(mfccs[i])
 
     return features
-
 
 def extract_features_labelled(file_path, label):
     # Label: AI = 1; Human = 0
@@ -97,6 +98,7 @@ def extract_features(file_path):
 # df.to_csv('output.csv', index=False)
 
 # Data Preprocessing: Preprocess extracted features
+file_path = "xgboost_model.pkl"
 
 featuresfile = pd.read_csv('./Samples/KAGGLE/DATASET-balanced.csv')
 
@@ -108,34 +110,32 @@ labels = featuresfile['label'].copy()   # Extract labels
 
 # Split data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, shuffle=True, random_state=420)
+if not os.path.exists(file_path):
+    # Making a parameter grid for Hyperparameter Tuning
+    param_grid = {
+        'learning_rate': [0.01, 0.05, 0.1, 0.15, 0.2],
+        'max_depth': [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+        'min_child_weight': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        'subsample': [0.6, 0.7, 0.8, 0.9, 1.0],
+        'colsample_bytree': [0.6, 0.7, 0.8, 0.9, 1.0],
+        'reg_lambda': [0.01, 0.1, 1.0, 10.0, 50.0]
+    }
 
-# Making a parameter grid for Hyperparameter Tuning
-param_grid = {
-    'learning_rate': [0.01, 0.05, 0.1, 0.15, 0.2],
-    'max_depth': [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
-    'min_child_weight': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    'subsample': [0.6, 0.7, 0.8, 0.9, 1.0],
-    'colsample_bytree': [0.6, 0.7, 0.8, 0.9, 1.0],
-    'reg_lambda': [0.01, 0.1, 1.0, 10.0, 50.0]
-}
+    # Initialize the XGBoost classifier
+    clf = xgb.XGBClassifier(objective='binary:logistic', eval_metric='aucpr')
 
-# Initialize the XGBoost classifier
-clf = xgb.XGBClassifier(objective='binary:logistic', eval_metric='aucpr')
+    # Perform random search with cross-validation
+    random_search = RandomizedSearchCV(clf, param_distributions=param_grid, n_iter=50, scoring='roc_auc', cv=5, verbose=1, n_jobs=2)
+    random_search.fit(X_train, y_train)
 
-# Perform random search with cross-validation
-random_search = RandomizedSearchCV(clf, param_distributions=param_grid, n_iter=50, scoring='roc_auc', cv=5, verbose=1, n_jobs=2)
-random_search.fit(X_train, y_train)
+    # Get the best hyperparameters
+    best_params = random_search.best_params_
 
-# Get the best hyperparameters
-best_params = random_search.best_params_
-
-# Training an XGBoost Classifier
-model = xgb.XGBClassifier(**best_params)
-model.fit(X_train, y_train)
-# dtest = xgb.DMatrix(X_test, y_test)
-# dtrain = xgb.DMatrix(X_train, y_train)
-# params = {'objective':'binary:logistic', 'eval_metric': 'aucpr', 'reg_lambda': 50.0}
-# model = xgb.train(dtrain=dtrain, params=params, num_boost_round=10000, evals=[(dtrain, 'train'), (dtest, 'validtion')], verbose_eval=10, early_stopping_rounds=500)
+    # Training an XGBoost Classifier
+    model = xgb.XGBClassifier(**best_params)
+    model.fit(X_train, y_train)
+    joblib.dump(model, 'xgboost_model.pkl')
+model = joblib.load('xgboost_model.pkl') # Use this to load the model
 test_result = model.predict(X_test)
 threshold = 0.9
 test_result_class = [1 if p > threshold else 0 for p in test_result]
@@ -143,9 +143,9 @@ print(confusion_matrix(y_test, test_result_class))
 print(test_result)
 
 # Prediction on new samples
-new_samples = [] # ADD PATH TO AUDIO FILE TO CHECK FOR AI AUTHENTICITY
+new_samples = ["Recording.mp3", "woman.wav", "ai.mp3", "human.mp3"]
 for sample in new_samples:
-    features = extract_features(sample)
+    features = extract_features("Samples/"+sample)
     prediction = model.predict(features)
     prediction = [1 if p > threshold else 0 for p in prediction]
     print(f"{sample}: Predicted class - {'AI' if np.mean(prediction) > threshold else 'Human'} - {np.mean(prediction)}")
