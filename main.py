@@ -6,6 +6,7 @@ import xgboost as xgb
 import librosa
 import numpy as np
 import pandas as pd
+import joblib
 import glob
 
 def extract_features_from_segment(segment, sr):
@@ -33,7 +34,6 @@ def extract_features_from_segment(segment, sr):
         features[f'mfcc{i + 1}'] = np.mean(mfccs[i])
 
     return features
-
 
 def extract_features_labelled(file_path, label):
     # Label: AI = 1; Human = 0
@@ -98,7 +98,7 @@ def extract_features(file_path):
 
 # Data Preprocessing: Preprocess extracted features
 
-featuresfile = pd.read_csv('./Samples/KAGGLE/DATASET-balanced.csv')
+featuresfile = pd.read_csv('./KAGGLE/DATASET-balanced.csv')
 
 # Assuming your features are stored in columns (with the last column being the label)
 features = featuresfile.drop('label', axis = 1).copy()  # Extract features (all columns except label)
@@ -132,10 +132,8 @@ best_params = random_search.best_params_
 # Training an XGBoost Classifier
 model = xgb.XGBClassifier(**best_params)
 model.fit(X_train, y_train)
-# dtest = xgb.DMatrix(X_test, y_test)
-# dtrain = xgb.DMatrix(X_train, y_train)
-# params = {'objective':'binary:logistic', 'eval_metric': 'aucpr', 'reg_lambda': 50.0}
-# model = xgb.train(dtrain=dtrain, params=params, num_boost_round=10000, evals=[(dtrain, 'train'), (dtest, 'validtion')], verbose_eval=10, early_stopping_rounds=500)
+joblib.dump(model, 'xgboost_model.pkl')
+# loaded_model = joblib.load('xgboost_model.pkl') # Use this to load the model
 test_result = model.predict(X_test)
 threshold = 0.9
 test_result_class = [1 if p > threshold else 0 for p in test_result]
@@ -143,7 +141,7 @@ print(confusion_matrix(y_test, test_result_class))
 print(test_result)
 
 # Prediction on new samples
-new_samples = [] # ADD PATH TO AUDIO FILE TO CHECK FOR AI AUTHENTICITY
+new_samples = ["Recording.mp3", "woman.wav", "ai.mp3", "human.mp3"]
 for sample in new_samples:
     features = extract_features(sample)
     prediction = model.predict(features)
