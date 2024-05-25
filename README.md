@@ -18,3 +18,12 @@ activate the virtual env
 Install packages
 
 ``pip install -r requirements.txt``
+
+Run flask
+
+```
+export FLASK_APP=app.py
+export FLASK_ENV=development
+export FLASK_DEBUG=true
+flask run
+`
