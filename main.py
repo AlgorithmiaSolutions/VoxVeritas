@@ -1,7 +1,7 @@
 from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import uniform
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
+from sklearn.linear_model import LogisticRegression
 import xgboost as xgb
 import librosa
 import numpy as np
@@ -154,27 +154,30 @@ if not os.path.exists(file_path):
     model = xgb.XGBClassifier(**best_params)
     model.fit(X_train, y_train)
     joblib.dump(model, 'xgboost_model.pkl')
-
-model = joblib.load('xgboost_model.pkl') # Use this to load the model
+else:
+    model = joblib.load('xgboost_model.pkl') # Use this to load the model
 test_result = model.predict(X_test)
 threshold = 0.9
 test_result_class = [1 if p > threshold else 0 for p in test_result]
 print(confusion_matrix(y_test, test_result_class))
 
-# Prediction on new samples
-folder_path = ".\Samples\AITest_LE_30s"
-new_samples = glob.glob(folder_path + "\*")
+log_reg = LogisticRegression()
+log_reg.fit(test_result.reshape(-1, 1), y_test)
 
-folder_size = len(new_samples)
-sum_of_guesses = 0
-# new_samples = ["Samples\HumanTest_LE_10s\HumanTest_112.mp3"]
-for sample in new_samples:
-    features = extract_features(sample)
-    prediction = model.predict(features)
-    prediction = [1 if p > threshold else 0 for p in prediction]
-    print(confusion_matrix(y_test, prediction))
-    print(f"{sample}: Predicted class - {'AI' if np.mean(prediction) > threshold else 'Human'} - {np.mean(prediction)}\n")
-    sum_of_guesses += np.mean(prediction)
+# # Prediction on new samples
+# folder_path = ".\Samples\AITest_LE_30s"
+# new_samples = glob.glob(folder_path + "\*")
 
-# print(f"Accuracy: {model.score(X_test,y_test)}")
-print(f"Average Guess: {sum_of_guesses/folder_size}")
+# folder_size = len(new_samples)
+# sum_of_guesses = 0
+# # new_samples = ["Samples\HumanTest_LE_10s\HumanTest_112.mp3"]
+# for sample in new_samples:
+#     features = extract_features(sample)
+#     prediction = model.predict(features)
+#     prediction = [1 if p > threshold else 0 for p in prediction]
+#     print(confusion_matrix(y_test, prediction))
+#     print(f"{sample}: Predicted class - {'AI' if np.mean(prediction) > threshold else 'Human'} - {np.mean(prediction)}\n")
+#     sum_of_guesses += np.mean(prediction)
+
+# # print(f"Accuracy: {model.score(X_test,y_test)}")
+# print(f"Average Guess: {sum_of_guesses/folder_size}")
