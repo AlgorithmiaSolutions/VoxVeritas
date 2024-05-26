@@ -1,5 +1,4 @@
 from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import uniform
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
 import xgboost as xgb
@@ -161,20 +160,20 @@ threshold = 0.9
 test_result_class = [1 if p > threshold else 0 for p in test_result]
 print(confusion_matrix(y_test, test_result_class))
 
-# Prediction on new samples
-folder_path = ".\Samples\AITest_LE_30s"
-new_samples = glob.glob(folder_path + "\*")
+# # Prediction on new samples
+# folder_path = ".\Samples\AITest_LE_30s"
+# new_samples = glob.glob(folder_path + "\*")
 
-folder_size = len(new_samples)
-sum_of_guesses = 0
-# new_samples = ["Samples\HumanTest_LE_10s\HumanTest_112.mp3"]
-for sample in new_samples:
-    features = extract_features(sample)
-    prediction = model.predict(features)
-    prediction = [1 if p > threshold else 0 for p in prediction]
-    print(confusion_matrix(y_test, prediction))
-    print(f"{sample}: Predicted class - {'AI' if np.mean(prediction) > threshold else 'Human'} - {np.mean(prediction)}\n")
-    sum_of_guesses += np.mean(prediction)
+# folder_size = len(new_samples)
+# sum_of_guesses = 0
+# # new_samples = ["Samples\HumanTest_LE_10s\HumanTest_112.mp3"]
+# for sample in new_samples:
+#     features = extract_features(sample)
+#     prediction = model.predict(features)
+#     prediction = [1 if p > threshold else 0 for p in prediction]
+#     print(confusion_matrix(y_test, prediction))
+#     print(f"{sample}: Predicted class - {'AI' if np.mean(prediction) > threshold else 'Human'} - {np.mean(prediction)}\n")
+#     sum_of_guesses += np.mean(prediction)
 
-# print(f"Accuracy: {model.score(X_test,y_test)}")
-print(f"Average Guess: {sum_of_guesses/folder_size}")
+# # print(f"Accuracy: {model.score(X_test,y_test)}")
+# print(f"Average Guess: {sum_of_guesses/folder_size}")
