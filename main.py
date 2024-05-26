@@ -107,16 +107,14 @@ df = pd.DataFrame()
 
 # # # Extracting features from the human voice audio file
 human_files = glob.glob('Samples/KAGGLE/AUDIO/REAL/*.wav')
-print(human_files)
+
 for file in human_files:
     df = df._append(extract_features_labelled(file, 0))
-    print(df)
 
 # # # Extracting features from the AI voice audio file and appending it to dataframe
-ai_files = glob.glob('Samples/KAGGLE/AUDIO/FAKE/*.wav')
+ai_files = glob.glob('Samples/KAGGLE/AUDIO/FAKE/*.wav')[::7]
 for file in ai_files:
     df = df._append(extract_features_labelled(file, 1))
-    print(df)
 
 # # # Saving it to a csv file
 df.to_csv('output.csv', index=False)
@@ -165,7 +163,7 @@ test_result_class = [1 if p > threshold else 0 for p in test_result]
 print(confusion_matrix(y_test, test_result_class))
 
 # Prediction on new samples
-folder_path = ".\Samples\AITest_LE_30s"
+folder_path = ".\Samples\HumanTest_LE_30s"
 new_samples = glob.glob(folder_path + "\*")
 
 folder_size = len(new_samples)
@@ -175,7 +173,6 @@ for sample in new_samples:
     features = extract_features(sample)
     prediction = model.predict(features)
     prediction = [1 if p > threshold else 0 for p in prediction]
-    print(confusion_matrix(y_test, prediction))
     print(f"{sample}: Predicted class - {'AI' if np.mean(prediction) > threshold else 'Human'} - {np.mean(prediction)}\n")
     sum_of_guesses += np.mean(prediction)
 
