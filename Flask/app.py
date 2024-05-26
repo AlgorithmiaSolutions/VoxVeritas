@@ -1,6 +1,8 @@
 import os
 
-from flask import Flask, render_template, request, flash, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for
+
+from ai import ai_process
 
 app = Flask(__name__)
 app.secret_key = 'mknafihia;nfiuqwnpf982no2iqn'
@@ -27,7 +29,8 @@ def submit_audio():
         filename = file.filename
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
-        return redirect(url_for('index_get', message='File uploaded successfully!'))
+        result = ai_process(filename)
+        return redirect(url_for('index_get', message='The audio is: ' + result))
     return redirect(url_for('index_get', message='File failed to upload!'))
 
 
