@@ -43,26 +43,26 @@ def extract_features_labelled(file_path, label):
     df = pd.DataFrame()
 
     # Apply moving average filter for noise reduction
-    window_size = 1000  # Adjust window size as needed
-    denoised_audio = np.convolve(y, np.ones(window_size)/window_size, mode='same')
+    # window_size = 1000  # Adjust window size as needed
+    # denoised_audio = np.convolve(y, np.ones(window_size)/window_size, mode='same')
 
     # Split the audio into 1-second segments
     segment_length = sr  # 1 second worth of samples
-    num_segments = len(denoised_audio) // segment_length
+    num_segments = len(y) // segment_length
 
     for i in range(num_segments):
         start = i * segment_length
         end = start + segment_length
         segment = y[start:end]
-
+        segment_features = extract_features_from_segment(segment, sr)
         # Extract features from this segment, ignoring segments that would cause warnings due to being too short or otherwise
-        with warnings.catch_warnings():
-            warnings.filterwarnings('ignore', category=UserWarning)
-            try:
-                segment_features = extract_features_from_segment(segment, sr)
-            except UserWarning:
-                print("Pitch estimation not possible for the given segment. Skipping...")
-                continue
+        # with warnings.catch_warnings():
+        #     warnings.filterwarnings('ignore', category=UserWarning)
+        #     try:
+        #         segment_features = extract_features_from_segment(segment, sr)
+        #     except UserWarning:
+        #         print("Pitch estimation not possible for the given segment. Skipping...")
+        #         continue
 
         # Add label column (AI = 1; Human = 0)
         segment_features['label'] = label
@@ -102,26 +102,29 @@ def extract_features(file_path):
         df = df._append(segment_features, ignore_index=True)
     return df
 
-# # # # Initialize an empty dataframe to store the features
-# df = pd.DataFrame()
+# # # Initialize an empty dataframe to store the features
+df = pd.DataFrame()
 
-# # # # Extracting features from the human voice audio file
-# human_files = glob.glob('./KAGGLE/AUDIO/REAL/*.wav')
-# for file in human_files:
-#     df = df._append(extract_features_labelled(file, 0))
+# # # Extracting features from the human voice audio file
+human_files = glob.glob('Samples/KAGGLE/AUDIO/REAL/*.wav')
+print(human_files)
+for file in human_files:
+    df = df._append(extract_features_labelled(file, 0))
+    print(df)
 
-# # # # Extracting features from the AI voice audio file and appending it to dataframe
-# ai_files = glob.glob('./KAGGLE/AUDIO/FAKE/*.wav')
-# for file in ai_files:
-#     df = df._append(extract_features_labelled(file, 1))
+# # # Extracting features from the AI voice audio file and appending it to dataframe
+ai_files = glob.glob('Samples/KAGGLE/AUDIO/FAKE/*.wav')
+for file in ai_files:
+    df = df._append(extract_features_labelled(file, 1))
+    print(df)
 
-# # # # Saving it to a csv file
-# df.to_csv('output.csv', index=False)
+# # # Saving it to a csv file
+df.to_csv('output.csv', index=False)
 
 # Data Preprocessing: Preprocess extracted features
 file_path = "xgboost_model.pkl"
 
-featuresfile = pd.read_csv('./Samples/KAGGLE/DATASET-balanced.csv')
+featuresfile = pd.read_csv('output.csv')
 
 # Assuming your features are stored in columns (with the last column being the label)
 features = featuresfile.drop('label', axis = 1).copy()  # Extract features (all columns except label)
