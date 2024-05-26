@@ -1,6 +1,7 @@
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
+from sklearn.linear_model import LogisticRegression
 import xgboost as xgb
 import librosa
 import numpy as np
@@ -153,12 +154,15 @@ if not os.path.exists(file_path):
     model = xgb.XGBClassifier(**best_params)
     model.fit(X_train, y_train)
     joblib.dump(model, 'xgboost_model.pkl')
-
-model = joblib.load('xgboost_model.pkl') # Use this to load the model
+else:
+    model = joblib.load('xgboost_model.pkl') # Use this to load the model
 test_result = model.predict(X_test)
 threshold = 0.9
 test_result_class = [1 if p > threshold else 0 for p in test_result]
 print(confusion_matrix(y_test, test_result_class))
+
+log_reg = LogisticRegression()
+log_reg.fit(test_result.reshape(-1, 1), y_test)
 
 # # Prediction on new samples
 # folder_path = ".\Samples\AITest_LE_30s"
