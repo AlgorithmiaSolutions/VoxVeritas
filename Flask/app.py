@@ -25,6 +25,9 @@ def submit_audio():
     if file.filename == '':
         return redirect(url_for('index_get', message='No selected file!'))
 
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+
     if file:
         filename = file.filename
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)

@@ -105,8 +105,7 @@ def extract_features(file_path):
 # Data Preprocessing: Preprocess extracted features
 def ai_process(audio_file):
     model_file_path = "xgboost_model.pkl"
-
-    features_file = pd.read_csv('../Samples/KAGGLE/DATASET-balanced.csv')
+    features_file = pd.read_csv('../DATASET-balanced.csv')
 
     # Assuming your features are stored in columns (with the last column being the label)
     features = features_file.drop('label', axis=1).copy()  # Extract features (all columns except label)
