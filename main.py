@@ -9,6 +9,7 @@ import pandas as pd
 import joblib
 import os
 import glob
+import warnings
 
 def extract_features_from_segment(segment, sr):
     # Extract features from the segment
@@ -36,66 +37,36 @@ def extract_features_from_segment(segment, sr):
 
     return features
 
-def extract_features_labelled(file_path, label):
-    # Label: AI = 1; Human = 0
-    y, sr = librosa.load(file_path, sr=None)
-    df = pd.DataFrame()
-
-    # Split the audio into 1-second segments
-    segment_length = sr  # 1 second worth of samples
-    num_segments = len(y) // segment_length
-
-    for i in range(num_segments):
-        start = i * segment_length
-        end = start + segment_length
-        segment = y[start:end]
-
-        # Extract features from this segment
-        segment_features = extract_features_from_segment(segment, sr)
-
-        # Add label column (AI = 1; Human = 0)
-        segment_features['label'] = label
-
-        df = df._append(segment_features, ignore_index=True)
-
-    return df
 
 def extract_features(file_path):
     # Label: AI = 1; Human = 0
     y, sr = librosa.load(file_path, sr=None)
     df = pd.DataFrame()
 
+    # Apply moving average filter for noise reduction
+    window_size = 1000  # Adjust window size as needed
+    denoised_audio = np.convolve(y, np.ones(window_size)/window_size, mode='same')
+
     # Split the audio into 1-second segments
     segment_length = sr  # 1 second worth of samples
-    num_segments = len(y) // segment_length
+    num_segments = len(denoised_audio) // segment_length
+
 
     for i in range(num_segments):
         start = i * segment_length
         end = start + segment_length
-        segment = y[start:end]
-        
-        # Extract features from this segment
-        segment_features = extract_features_from_segment(segment, sr)
+        segment = denoised_audio[start:end]
+        # Extract features from this segment, ignoring segments that would cause warnings due to being too short or otherwise
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=UserWarning)
+            try:
+                segment_features = extract_features_from_segment(segment, sr)
+            except UserWarning:
+                print("Pitch estimation not possible for the given segment. Skipping...")
+                continue
 
         df = df._append(segment_features, ignore_index=True)
-
     return df
-
-# # # # Initialize an empty dataframe to store the features
-# df = pd.DataFrame()
-
-# # # # Extracting features from the human voice audio file
-# human_files = glob.glob('./KAGGLE/AUDIO/REAL/*.wav')
-# for file in human_files:
-#     df = df._append(extract_features_labelled(file, 0))
-
-# # # # Extracting features from the AI voice audio file and appending it to dataframe
-# ai_files = glob.glob('./KAGGLE/AUDIO/FAKE/*.wav')
-# for file in ai_files:
-#     df = df._append(extract_features_labelled(file, 1))
-
-# # # # Saving it to a csv file
-# df.to_csv('output.csv', index=False)
 
 # Data Preprocessing: Preprocess extracted features
 file_path = "xgboost_model.pkl"
@@ -105,8 +76,6 @@ featuresfile = pd.read_csv('./Samples/KAGGLE/DATASET-balanced.csv')
 # Assuming your features are stored in columns (with the last column being the label)
 features = featuresfile.drop('label', axis = 1).copy()  # Extract features (all columns except label)
 labels = featuresfile['label'].copy()   # Extract labels
-
-# Now, imputed_features contains preprocessed features ready to be used for training your random forest classifier.
 
 # Split data into training and testing sets
 X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, shuffle=True, random_state=420)
@@ -135,17 +104,27 @@ if not os.path.exists(file_path):
     model = xgb.XGBClassifier(**best_params)
     model.fit(X_train, y_train)
     joblib.dump(model, 'xgboost_model.pkl')
+
 model = joblib.load('xgboost_model.pkl') # Use this to load the model
 test_result = model.predict(X_test)
 threshold = 0.9
 test_result_class = [1 if p > threshold else 0 for p in test_result]
 print(confusion_matrix(y_test, test_result_class))
-print(test_result)
 
 # Prediction on new samples
-new_samples = ["Recording.mp3", "woman.wav", "ai.mp3", "human.mp3"]
+folder_path = ".\Samples\AITest_LE_30s"
+new_samples = glob.glob(folder_path + "\*")
+
+folder_size = len(new_samples)
+sum_of_guesses = 0
+# new_samples = ["Samples\HumanTest_LE_10s\HumanTest_112.mp3"]
 for sample in new_samples:
-    features = extract_features("Samples/"+sample)
+    features = extract_features(sample)
     prediction = model.predict(features)
     prediction = [1 if p > threshold else 0 for p in prediction]
-    print(f"{sample}: Predicted class - {'AI' if np.mean(prediction) > threshold else 'Human'} - {np.mean(prediction)}")
+    print(confusion_matrix(y_test, prediction))
+    print(f"{sample}: Predicted class - {'AI' if np.mean(prediction) > threshold else 'Human'} - {np.mean(prediction)}\n")
+    sum_of_guesses += np.mean(prediction)
+
+# print(f"Accuracy: {model.score(X_test,y_test)}")
+print(f"Average Guess: {sum_of_guesses/folder_size}")
